@@ -76,16 +76,19 @@ def prepare_arguments(parser):
     add('--os-version', help='OS version or codename, e.g. precise, wheezy')
     add('--ros-distro', help="ROS distro, e.g. %s (used for rosdep)" % get_distro_list_prompt())
     add('--native', action='store_true', help="generate native package")
+    add('--skip-package-names', default=None, help="the path of package list that are desired to skip dependency")
     return parser
 
 
-def get_subs(pkg, os_name, os_version, ros_distro, native=False):
+def get_subs(pkg, os_name, os_version, ros_distro, native=False, skip_package_names=None):
+    print(traceback.format_exc())
     return generate_substitutions_from_package(
         pkg,
         os_name,
         os_version,
         ros_distro,
-        native=native
+        native=native,
+        skip_package_names=skip_package_names
     )
 
 
@@ -94,10 +97,25 @@ def main(args=None, get_subs_fn=None):
     _place_template_files = True
     _process_template_files = True
     package_path = os.getcwd()
+    skip_package_names = None
+
     if args is not None:
         package_path = args.package_path or os.getcwd()
         _place_template_files = args.place_template_files
         _process_template_files = args.process_template_files
+
+        # create dependency-skip package name lists
+        skip_name_path = args.skip_package_names or ''
+        if os.path.isfile(os.path.abspath(skip_name_path)):
+            with open(os.path.abspath(skip_name_path), 'r') as f:
+                skip_package_names = []
+                for line in f:
+                    # comment string 
+                    if line[:1] == '#':
+                        continue
+                    # add lists
+                    skip_package_names.append(line.strip())
+
 
     pkgs_dict = find_packages(package_path)
     if len(pkgs_dict) == 0:
@@ -114,6 +132,7 @@ def main(args=None, get_subs_fn=None):
     os_name = args.os_name or os_name
     os_version = args.os_version or os_version
     ros_distro = args.ros_distro or ros_distro
+    
 
     # Summarize
     info(fmt("@!@{gf}==> @|") +
@@ -123,7 +142,7 @@ def main(args=None, get_subs_fn=None):
     for path, pkg in pkgs_dict.items():
         template_files = None
         try:
-            subs = get_subs_fn(pkg, os_name, os_version, ros_distro, args.native)
+            subs = get_subs_fn(pkg, os_name, os_version, ros_distro, args.native, skip_package_names)
             if _place_template_files:
                 # Place template files
                 place_template_files(path, pkg.get_build_type())

@@ -185,13 +185,15 @@ def summarize_dependency_mapping(data, deps, build_deps, resolved_deps):
              ansi('reset'))
         info(header)
         for key in [d.name for d in deps]:
-            info(template.format(key, resolved_deps[key]))
+            if key in resolved_deps:
+                info(template.format(key, resolved_deps[key]))
     if len(build_deps) != 0:
         info(ansi('purplef') +
              "Build and Build Tool Dependencies:" + ansi('reset'))
         info(header)
         for key in [d.name for d in build_deps]:
-            info(template.format(key, resolved_deps[key]))
+            if key in resolved_deps:
+                info(template.format(key, resolved_deps[key]))
 
 
 def format_depends(depends, resolved_deps):
@@ -204,6 +206,9 @@ def format_depends(depends, resolved_deps):
     }
     formatted = []
     for d in depends:
+        if d.name not in resolved_deps:
+            continue
+        
         for resolved_dep in resolved_deps[d.name]:
             version_depends = [k
                                for k in versions.keys()
@@ -289,8 +294,10 @@ def generate_substitutions_from_package(
     peer_packages=None,
     releaser_history=None,
     fallback_resolver=None,
-    native=False
+    native=False,
+    skip_package_names=None
 ):
+    info('{}Dependency-skip packages: {}{}'.format(ansi('purplef'), skip_package_names, ansi('reset')))
     peer_packages = peer_packages or []
     data = {}
     # Name, Version, Description
@@ -320,7 +327,8 @@ def generate_substitutions_from_package(
     resolved_deps = resolve_dependencies(unresolved_keys, os_name,
                                          os_version, ros_distro,
                                          peer_packages + [d.name for d in package.replaces + package.conflicts],
-                                         fallback_resolver)
+                                         fallback_resolver,
+                                         skip_package_names=skip_package_names)
     data['Depends'] = sorted(
         set(format_depends(depends, resolved_deps))
     )
@@ -583,7 +591,7 @@ class DebianGenerator(BloomGenerator):
             if self.os_name not in distribution_file.release_platforms:
                 if args.os_not_required:
                     warning("No platforms defined for os '{0}' in release file for the "
-                            "'{1}' distro. This os was not required; continuing without error."
+                               "'{1}' distro. This os was not required; continuing without error."
                             .format(self.os_name, self.rosdistro))
                     sys.exit(0)
                 error("No platforms defined for os '{0}' in release file for the '{1}' distro."

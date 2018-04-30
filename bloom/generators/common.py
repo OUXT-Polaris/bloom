@@ -35,6 +35,7 @@ from __future__ import print_function
 import pkg_resources
 import sys
 import traceback
+import os
 
 from bloom.logging import debug
 from bloom.logging import error
@@ -171,15 +172,20 @@ def resolve_dependencies(
     os_version,
     ros_distro=None,
     peer_packages=None,
-    fallback_resolver=None
+    fallback_resolver=None,
+    skip_package_names=None
 ):
     ros_distro = ros_distro or DEFAULT_ROS_DISTRO
     peer_packages = peer_packages or []
     fallback_resolver = fallback_resolver or default_fallback_resolver
+    skip_package_names = skip_package_names or []
 
     resolved_keys = {}
     keys = [k.name for k in keys]
     for key in keys:
+        if key in skip_package_names:
+            continue
+
         resolved_key, installer_key, default_installer_key = \
             resolve_rosdep_key(key, os_name, os_version, ros_distro,
                                peer_packages, retry=True)
